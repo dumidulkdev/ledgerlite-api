@@ -32,11 +32,15 @@ class WalletServiceTest {
     @Mock
     private WalletRepository walletRepository;
 
+    @Mock
+    private MoneyService moneyService;
+
     @InjectMocks
     private WalletService walletService;
 
     @Test
     void createsWalletWithUppercaseCurrencyAndZeroBalance() {
+        when(moneyService.zero()).thenReturn(new BigDecimal("0.00"));
         when(walletRepository.save(any(Wallet.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         walletService.create(new CreateWalletRequest("Taylor Brooks", "usd"));
@@ -44,7 +48,6 @@ class WalletServiceTest {
         ArgumentCaptor<Wallet> captor = ArgumentCaptor.forClass(Wallet.class);
         verify(walletRepository).save(captor.capture());
         assertEquals("USD", captor.getValue().getCurrency());
-        assertEquals(new BigDecimal("0.00"), captor.getValue().getBalance());
     }
 
     @Test

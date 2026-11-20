@@ -9,7 +9,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -17,15 +16,17 @@ import java.util.UUID;
 public class WalletService {
 
     private final WalletRepository walletRepository;
+    private final MoneyService moneyService;
 
-    public WalletService(WalletRepository walletRepository) {
+    public WalletService(WalletRepository walletRepository, MoneyService moneyService) {
         this.walletRepository = walletRepository;
+        this.moneyService = moneyService;
     }
 
     @Transactional
     public Wallet create(CreateWalletRequest request) {
         String currency = request.currency().toUpperCase(Locale.ROOT);
-        Wallet wallet = new Wallet(UUID.randomUUID(), request.ownerName(), currency, BigDecimal.ZERO.setScale(2));
+        Wallet wallet = new Wallet(UUID.randomUUID(), request.ownerName(), currency, moneyService.zero());
         return walletRepository.save(wallet);
     }
 
