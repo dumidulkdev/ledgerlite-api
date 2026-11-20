@@ -2,10 +2,12 @@ package com.ledgerlite.controller;
 
 import com.ledgerlite.dto.CreateWalletRequest;
 import com.ledgerlite.dto.MoneyMovementRequest;
+import com.ledgerlite.dto.StatementResponse;
 import com.ledgerlite.dto.WalletResponse;
 import com.ledgerlite.mapper.WalletMapper;
 import com.ledgerlite.service.IdempotentExecutionService;
 import com.ledgerlite.service.LedgerService;
+import com.ledgerlite.service.StatementService;
 import com.ledgerlite.service.WalletOperationService;
 import com.ledgerlite.service.WalletService;
 import com.ledgerlite.controller.annotation.RequireIdempotencyKey;
@@ -16,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,9 +27,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static com.ledgerlite.config.OpenApiConfig.IDEMPOTENCY_KEY_HEADER;
@@ -38,17 +43,20 @@ public class WalletController {
     private final WalletService walletService;
     private final WalletOperationService walletOperationService;
     private final LedgerService ledgerService;
+    private final StatementService statementService;
     private final WalletMapper walletMapper;
     private final IdempotentExecutionService idempotentExecutionService;
 
     public WalletController(WalletService walletService,
                             WalletOperationService walletOperationService,
                             LedgerService ledgerService,
+                            StatementService statementService,
                             WalletMapper walletMapper,
                             IdempotentExecutionService idempotentExecutionService) {
         this.walletService = walletService;
         this.walletOperationService = walletOperationService;
         this.ledgerService = ledgerService;
+        this.statementService = statementService;
         this.walletMapper = walletMapper;
         this.idempotentExecutionService = idempotentExecutionService;
     }
@@ -104,5 +112,14 @@ public class WalletController {
                                                                @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
                                                                Pageable pageable) {
         return ledgerService.walletLedger(id, pageable);
+    }
+
+    @GetMapping("/{id}/statement")
+    @Operation(summary = "Wallet statement for a date range")
+    public StatementResponse statement(@PathVariable UUID id,
+                                       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+                                       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+                                       @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return statementService.build(id, from, to, pageable);
     }
 }
