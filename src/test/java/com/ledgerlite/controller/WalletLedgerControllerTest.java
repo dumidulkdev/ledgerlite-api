@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import static com.ledgerlite.config.OpenApiConfig.IDEMPOTENCY_KEY_HEADER;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -49,6 +50,7 @@ class WalletLedgerControllerTest {
         deposit(walletId, "10.00", "seed");
         String payload = objectMapper.writeValueAsString(new MoneyMovementRequest(new BigDecimal("99.00"), "rent"));
         mockMvc.perform(post("/api/wallets/{id}/withdrawals", walletId)
+                        .header(IDEMPOTENCY_KEY_HEADER, UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.message").value("Insufficient funds"));
@@ -58,6 +60,7 @@ class WalletLedgerControllerTest {
         UUID walletId = createWallet();
         String payload = objectMapper.writeValueAsString(new MoneyMovementRequest(BigDecimal.ZERO, "bad"));
         mockMvc.perform(post("/api/wallets/{id}/deposits", walletId)
+                        .header(IDEMPOTENCY_KEY_HEADER, UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isBadRequest());
     }
@@ -66,6 +69,7 @@ class WalletLedgerControllerTest {
         UUID walletId = createWallet();
         String payload = "{\"amount\":12.345,\"reference\":\"precise\"}";
         mockMvc.perform(post("/api/wallets/{id}/deposits", walletId)
+                        .header(IDEMPOTENCY_KEY_HEADER, UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Amount must have at most 2 decimal places"));
@@ -91,6 +95,7 @@ class WalletLedgerControllerTest {
     private void deposit(UUID walletId, String amount, String reference) throws Exception {
         String payload = objectMapper.writeValueAsString(new MoneyMovementRequest(new BigDecimal(amount), reference));
         mockMvc.perform(post("/api/wallets/{id}/deposits", walletId)
+                        .header(IDEMPOTENCY_KEY_HEADER, UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isOk());
     }
@@ -98,6 +103,7 @@ class WalletLedgerControllerTest {
     private void withdraw(UUID walletId, String amount, String reference) throws Exception {
         String payload = objectMapper.writeValueAsString(new MoneyMovementRequest(new BigDecimal(amount), reference));
         mockMvc.perform(post("/api/wallets/{id}/withdrawals", walletId)
+                        .header(IDEMPOTENCY_KEY_HEADER, UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isOk());
     }

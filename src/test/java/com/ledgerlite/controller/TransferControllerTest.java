@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import static com.ledgerlite.config.OpenApiConfig.IDEMPOTENCY_KEY_HEADER;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -33,7 +34,9 @@ class TransferControllerTest {
         deposit(source, "200.00");
 
         CreateTransferRequest request = new CreateTransferRequest(source, target, new BigDecimal("75.50"), "utilities");
+        String key = "xfer-" + UUID.randomUUID();
         String body = mockMvc.perform(post("/api/transfers")
+                        .header(IDEMPOTENCY_KEY_HEADER, key)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -51,6 +54,17 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.balance").value(75.50));
     }
 
+    @Test void requiresIdempotencyKeyForTransfer() throws Exception {
+        UUID source = createWallet("A", "EUR");
+        UUID target = createWallet("B", "EUR");
+        deposit(source, "50.00");
+        CreateTransferRequest request = new CreateTransferRequest(source, target, new BigDecimal("10.00"), "test");
+        mockMvc.perform(post("/api/transfers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Idempotency-Key header is required"));
+    }
 
     @Test void rejectsCurrencyMismatch() throws Exception {
         UUID usd = createWallet("USD", "USD");
@@ -58,6 +72,7 @@ class TransferControllerTest {
         deposit(usd, "100.00");
         CreateTransferRequest request = new CreateTransferRequest(usd, eur, new BigDecimal("5.00"), "bad");
         mockMvc.perform(post("/api/transfers")
+                        .header(IDEMPOTENCY_KEY_HEADER, UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnprocessableEntity())
@@ -80,6 +95,7 @@ class TransferControllerTest {
     private void deposit(UUID walletId, String amount) throws Exception {
         String payload = objectMapper.writeValueAsString(new MoneyMovementRequest(new BigDecimal(amount), "fund"));
         mockMvc.perform(post("/api/wallets/{id}/deposits", walletId)
+                        .header(IDEMPOTENCY_KEY_HEADER, UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isOk());
     }

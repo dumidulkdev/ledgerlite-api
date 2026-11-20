@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static com.ledgerlite.config.OpenApiConfig.IDEMPOTENCY_KEY_HEADER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -60,6 +61,7 @@ class TransferConcurrencyTest {
                         CreateTransferRequest request = new CreateTransferRequest(
                                 source, target, TRANSFER_AMOUNT, "parallel");
                         MvcResult result = mockMvc.perform(post("/api/transfers")
+                                        .header(IDEMPOTENCY_KEY_HEADER, UUID.randomUUID().toString())
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(request)))
                                 .andReturn();
@@ -114,6 +116,7 @@ class TransferConcurrencyTest {
     private void deposit(UUID walletId, BigDecimal amount, String reference) throws Exception {
         String payload = objectMapper.writeValueAsString(new MoneyMovementRequest(amount, reference));
         mockMvc.perform(post("/api/wallets/{id}/deposits", walletId)
+                        .header(IDEMPOTENCY_KEY_HEADER, UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isOk());
