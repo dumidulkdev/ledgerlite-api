@@ -7,11 +7,13 @@ import com.ledgerlite.domain.LedgerTransactionType;
 import com.ledgerlite.domain.Transfer;
 import com.ledgerlite.domain.Wallet;
 import com.ledgerlite.dto.CreateTransferRequest;
+import com.ledgerlite.event.TransferCompletedEvent;
 import com.ledgerlite.exception.BusinessRuleException;
 import com.ledgerlite.exception.InsufficientFundsException;
 import com.ledgerlite.exception.ResourceNotFoundException;
 import com.ledgerlite.repository.TransferRepository;
 import com.ledgerlite.repository.WalletRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -31,17 +33,20 @@ public class TransferService {
     private final TransferRepository transferRepository;
     private final LedgerService ledgerService;
     private final MoneyService moneyService;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     public TransferService(WalletRepository walletRepository,
                            TransferRepository transferRepository,
                            LedgerService ledgerService,
                            MoneyService moneyService,
+                           ApplicationEventPublisher eventPublisher,
                            Clock clock) {
         this.walletRepository = walletRepository;
         this.transferRepository = transferRepository;
         this.ledgerService = ledgerService;
         this.moneyService = moneyService;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -97,6 +102,14 @@ public class TransferService {
         );
         transferRepository.save(transfer);
 
+        eventPublisher.publishEvent(new TransferCompletedEvent(
+                transfer.getId(),
+                source.getId(),
+                target.getId(),
+                amount,
+                source.getCurrency(),
+                now
+        ));
 
         return transfer;
     }

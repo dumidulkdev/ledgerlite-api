@@ -101,6 +101,9 @@ class TransferConcurrencyTest {
         assertThat(sourceAmount.add(targetAmount)).isEqualByComparingTo(initialFunding);
         assertThat(completed).isGreaterThan(0);
 
+        mockMvc.perform(get("/api/admin/ledger/verify"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.healthy").value(true));
     }
 
     private UUID createWallet(String owner, String currency) throws Exception {
